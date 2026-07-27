@@ -1,0 +1,69 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1234}
+      POSTGRES_DB: ${POSTGRES_DB:-placas_deteccion_robo_autos}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ml-service:
+    build: ./ml-service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # los pesos entrenados (.pt) se dejan acá a mano, generados en Colab
+      - ./ml-service/model:/app/model
+      # cache de EasyOCR para no re-descargar los modelos en cada rebuild
+      - easyocr_cache:/root/.EasyOCR
+    environment:
+      YOLO_MODEL_PATH: model/yolov8n_placas.pt
+      YOLO_CONFIDENCE_THRESHOLD: "0.4"
+      ALLOWED_ORIGINS: "*"
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-placas_deteccion_robo}?schema=public
+      ML_SERVICE_URL: http://ml-service:8000
+      PORT: 3001
+      # Sin default: el backend falla al arrancar si no está seteado (ver
+      # auth.module.ts / jwt.strategy.ts). Definir JWT_SECRET en el .env de la raíz.
+      JWT_SECRET: ${JWT_SECRET:?falta JWT_SECRET en el .env de la raíz}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      MIN_OCR_CONFIANZA_ALERTA: ${MIN_OCR_CONFIANZA_ALERTA:-0.5}
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # se hornea en build time: el navegador corre fuera de la red de
+        # Docker, por eso apunta al puerto publicado en el host
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  easyocr_cache:

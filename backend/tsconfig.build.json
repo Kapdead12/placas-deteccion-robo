@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  // "prisma" queda afuera de este build: seed.ts corre en runtime con
+  // ts-node (ver package.json > prisma.seed), no como parte de `nest build`.
+  // Sin este exclude, tsc infiere el rootDir como la raíz del proyecto (por
+  // incluir tanto src/ como prisma/) y el output termina en dist/src/main.js
+  // en vez de dist/main.js, que es lo que espera el CMD del Dockerfile.
+  "exclude": ["node_modules", "test", "dist", "prisma", "**/*spec.ts"]
+}

@@ -1,0 +1,112 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  ADMIN
+  OPERADOR
+}
+
+// Quién opera el sistema. Nullable en Deteccion por ahora (no hay auth
+// integrado todavía en el frontend), pero la relación ya queda declarada.
+model Usuario {
+  id           String   @id @default(uuid())
+  nombre       String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  rol          Rol      @default(OPERADOR)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  detecciones      Deteccion[]
+  alertasAtendidas Alerta[]    @relation("AlertaAtendidaPor")
+
+  @@map("usuarios")
+}
+
+// Punto de captura de cada detección (una cámara/dispositivo puede ser
+// también "carga manual" si el proyecto no tiene cámaras físicas todavía)
+model Camara {
+  id        String   @id @default(uuid())
+  nombre    String
+  ubicacion String?
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  detecciones Deteccion[]
+
+  @@map("camaras")
+}
+
+enum EstadoAlerta {
+  PENDIENTE
+  REVISADA
+  DESCARTADA
+}
+
+// Historial de gestión de alertas, separado de Deteccion.
+// Solo se crea un registro cuando la detección matchea una placa reportada activa.
+model Alerta {
+  id            String       @id @default(uuid())
+  deteccionId   String       @unique @map("deteccion_id")
+  deteccion     Deteccion    @relation(fields: [deteccionId], references: [id])
+  estado        EstadoAlerta @default(PENDIENTE)
+  atendidaPorId String?      @map("atendida_por_id")
+  atendidaPor   Usuario?     @relation("AlertaAtendidaPor", fields: [atendidaPorId], references: [id])
+  fechaAtencion DateTime?    @map("fecha_atencion")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@map("alertas")
+}
+
+// Punto 7.a del PDF — Diagrama de BD
+// Cada detección corre el pipeline YOLO + EasyOCR del ml-service (FastAPI)
+model Deteccion {
+  id                 String   @id @default(uuid())
+  placa              String?
+  confianzaDeteccion Float    @map("confianza_deteccion")
+  confianzaOcr       Float    @map("confianza_ocr")
+  bboxX1             Int?     @map("bbox_x1")
+  bboxY1             Int?     @map("bbox_y1")
+  bboxX2             Int?     @map("bbox_x2")
+  bboxY2             Int?     @map("bbox_y2")
+  reportada          Boolean  @default(false)
+  // true cuando el match no fue exacto sino por distancia de edición <= 1
+  // (tolera confusiones típicas de OCR: 0↔O, 1↔I, 5↔S, 8↔B). Sirve para que
+  // un operador revise el caso en vez de tratarlo como confirmado.
+  coincidenciaAproximada Boolean @default(false) @map("coincidencia_aproximada")
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  usuarioId String?  @map("usuario_id")
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
+
+  camaraId String? @map("camara_id")
+  camara   Camara? @relation(fields: [camaraId], references: [id])
+
+  // Reemplaza el findUnique en tiempo de consulta: FK real hacia la placa
+  // reportada que matcheó (null si no hubo match)
+  placaReportadaId String?         @map("placa_reportada_id")
+  placaReportada   PlacaReportada? @relation(fields: [placaReportadaId], references: [id])
+
+  alerta Alerta?
+
+  @@map("detecciones")
+}
+
+// Lista de placas reportadas como robadas, contra la cual se cruza cada detección
+model PlacaReportada {
+  id           String   @id @default(uuid())
+  placa        String   @unique
+  motivo       String?
+  activo       Boolean  @default(true)
+  fechaReporte DateTime @default(now()) @map("fecha_reporte")
+
+  detecciones Deteccion[]
+
+  @@map("placas_reportadas")
+}

@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+data/raw/
+data/processed/
+notebooks/data/
+model/*.pt
+model/*.onnx
+runs/
+# Pesos base pretrained de COCO, se auto-descargan al instanciar YOLO('yolov8n.pt')
+/yolov8n.pt
+/yolov8s.pt
+.ipynb_checkpoints/
+placas_leidas.csv
+

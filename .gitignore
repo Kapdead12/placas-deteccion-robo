@@ -1,0 +1,11 @@
+# Env / secretos (cada .env.example queda trackeado como plantilla)
+.env
+.env.local
+
+# Estado local de herramientas, no compartido entre máquinas
+.vscode/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
