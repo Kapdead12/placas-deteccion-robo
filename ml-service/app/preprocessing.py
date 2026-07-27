@@ -35,11 +35,21 @@ def _deskew(image: np.ndarray) -> np.ndarray:
     if coords.shape[0] < 10:
         return image  # muy pocos píxeles de texto, no vale la pena corregir
 
-    angle = cv2.minAreaRect(coords)[-1]
+    (_, (w, h), angle) = cv2.minAreaRect(coords)
+
+    # Desde OpenCV 4.5, minAreaRect devuelve el ángulo en [0, 90) y puede
+    # asignar el lado más largo del rectángulo indistintamente a "w" o "h".
+    # La lógica clásica (pensada para OpenCV viejo, ángulos en (-90, 0])
+    # asume que el lado ancho es "w" — si quedó invertido, corrige con un
+    # texto horizontal real (sin inclinación) terminaba "corrigiendo" con
+    # una rotación de ~90°. Normalizamos: si el lado corto quedó como "w",
+    # el ángulo real está desfasado 90°.
+    if w < h:
+        angle -= 90
+
+    # Ahora angle queda en (-90, 0]; nos quedamos con la corrección mínima
     if angle < -45:
-        angle = -(90 + angle)
-    else:
-        angle = -angle
+        angle += 90
 
     # Inclinación mínima: no rotar (evita introducir ruido)
     if abs(angle) < 1.0:

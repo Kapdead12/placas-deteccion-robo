@@ -43,7 +43,10 @@ services:
         condition: service_started
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-placas_deteccion_robo}?schema=public
-      ML_SERVICE_URL: http://ml-service:8000
+      # Default: nombre del servicio en la red interna de Docker. Se puede
+      # override (ej. http://host.docker.internal:8000) para apuntar a un
+      # ml-service corriendo suelto por terminal en el host, sin rebuild.
+      ML_SERVICE_URL: ${ML_SERVICE_URL:-http://ml-service:8000}
       PORT: 3001
       # Sin default: el backend falla al arrancar si no está seteado (ver
       # auth.module.ts / jwt.strategy.ts). Definir JWT_SECRET en el .env de la raíz.
