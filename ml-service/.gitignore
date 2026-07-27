@@ -6,6 +6,7 @@ data/processed/
 notebooks/data/
 model/*.pt
 model/*.onnx
+model/*.onnx.data
 runs/
 # Pesos base pretrained de COCO, se auto-descargan al instanciar YOLO('yolov8n.pt')
 /yolov8n.pt

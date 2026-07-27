@@ -110,7 +110,7 @@ def main() -> None:
     print(f"Con bbox detectado:                     {con_bbox} ({100*con_bbox/total:.1f}%)")
     print(
         f"Con texto de formato válido de placa:   {con_texto_formato_valido} "
-        f"({100*con_texto_formato_valido/total:.1f}%) — formato válido ≠ lectura correcta"
+        f"({100*con_texto_formato_valido/total:.1f}%) — formato valido no es lo mismo que lectura correcta"
     )
     if confs_deteccion:
         print(f"Confianza detección promedio:           {sum(confs_deteccion)/len(confs_deteccion):.3f}")
